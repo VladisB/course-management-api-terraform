@@ -42,6 +42,7 @@ module "rds" {
     env_prefix = var.env_prefix
     jumpbox_sg_id = module.jumpbox.jumpbox-sg.id
     db_name = var.db_name
+    db_secret_id = var.db_secret_id
 }
 
 
@@ -49,4 +50,3 @@ module "rds" {
 
 
 
-# ssh -L 5432:mydb.cxxnqklbnj0z.eu-west-1.rds.amazonaws.com:5432 ec2-user@54.220.194.200 -i ~/.ssh/id_rsa -N

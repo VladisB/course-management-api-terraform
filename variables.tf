@@ -9,3 +9,4 @@ variable "public_key_location" {
   default = "~/.ssh/id_rsa.pub"
 }
 variable db_name {}
+variable db_secret_id {}

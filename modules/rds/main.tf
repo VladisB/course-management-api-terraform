@@ -27,6 +27,16 @@ resource "aws_db_subnet_group" "main" {
   subnet_ids = var.vpc_private_subnets
 }
 
+data "aws_secretsmanager_secret_version" "db_creds" {
+  secret_id = var.db_secret_id
+}
+
+locals {
+  db_creds = jsondecode(
+    data.aws_secretsmanager_secret_version.db_creds.secret_string
+  )
+}
+
 resource "aws_db_instance" "postgres" {
   allocated_storage    = 20
   storage_type         = "gp2"
@@ -36,8 +46,8 @@ resource "aws_db_instance" "postgres" {
   identifier           = "mydb"
   parameter_group_name = "default.postgres13"
   
-  password             = "yourpassword" // TODO: Change this to something secure
-  username             = "postgres" // TODO: Change this to something secure 
+  password             = local.db_creds.db_password
+  username             = local.db_creds.db_username
   
   skip_final_snapshot  = true
 
