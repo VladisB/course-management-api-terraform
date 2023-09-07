@@ -45,6 +45,13 @@ module "rds" {
     db_secret_id = var.db_secret_id
 }
 
+module "codepipeline" {
+    source = "./modules/codepipeline"
+
+    env_prefix = var.env_prefix
+    stage = var.stage
+}
+
 
 
 
