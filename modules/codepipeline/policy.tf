@@ -73,7 +73,9 @@ resource "aws_iam_policy" "codebuild_s3_policy" {
           "s3:GetObjectVersion",
           "s3:GetBucketVersioning",
           "s3:PutObjectAcl",
-          "s3:PutObject"
+          "s3:PutObject",
+          "s3:GetBucketAcl",
+          "s3:GetBucketLocation"
         ],
         Resource = [
           "${aws_s3_bucket.artifacts_codepipeline.arn}",
@@ -84,7 +86,6 @@ resource "aws_iam_policy" "codebuild_s3_policy" {
   })
 }
 
-// Policy for codebuild to access to secrets manager
 resource "aws_iam_policy" "codebuild_secrets_policy" {
   name        = "CodeBuildSecretsPolicy"
   description = "Allows CodeBuild to get access to Secrets Manager."
@@ -95,6 +96,7 @@ resource "aws_iam_policy" "codebuild_secrets_policy" {
       {
         Effect    = "Allow",
         Action    = [
+          "secretsmanager:GetResourcePolicy",
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret",
           "secretsmanager:ListSecretVersionIds"
@@ -105,7 +107,6 @@ resource "aws_iam_policy" "codebuild_secrets_policy" {
   })
 }
 
-// Policy for codebuild to access to ecr repository for code build
 resource "aws_iam_policy" "codebuild_ecr_policy" {
     name="CodeBuildECRPolicy"
     description="Allows CodeBuild to get access to ECR repository."
@@ -124,6 +125,52 @@ resource "aws_iam_policy" "codebuild_ecr_policy" {
                 ],
                 Resource="*"
             }
+        ]
+    }) 
+}
+
+resource "aws_iam_policy" "codebuild_report_groups_policy" {
+    name="CodeBuildReportGroupsPolicy"
+    description="Allows CodeBuild to get access to ReportGroups."
+    policy = jsonencode({
+        Version = "2012-10-17",
+        Statement = [
+            {
+                Effect="Allow",
+                Action=[
+                    "codebuild:CreateReportGroup",
+                    "codebuild:CreateReport",
+                    "codebuild:UpdateReport",
+                    "codebuild:BatchPutTestCases",
+                    "codebuild:BatchPutCodeCoverages"
+                ],
+                Resource="*"
+            }
+        ]
+    }) 
+}
+
+resource "aws_iam_policy" "codebuild_network_interfaces_policy" {
+    name="CodeBuildNetworkPolicy"
+    description="Allows CodeBuild to get access to Network."
+    policy = jsonencode({
+        Version = "2012-10-17",
+        Statement = [
+            {
+                Effect="Allow",
+                Action=[
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeDhcpOptions",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeVpcs",
+                    "ec2:CreateNetworkInterfacePermission"
+                ],
+                Resource="*"
+            },
+            
         ]
     }) 
 }
@@ -147,4 +194,14 @@ resource "aws_iam_role_policy_attachment" "attach_codebuild_secrets_policy" {
 resource "aws_iam_role_policy_attachment" "attach_codebuild_ecr_policy" {
     role       = "codebuild-api-nodejs-role"
     policy_arn = aws_iam_policy.codebuild_ecr_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "attach_codebuild_report_groups_policy" {
+    role       = "codebuild-api-nodejs-role"
+    policy_arn = aws_iam_policy.codebuild_report_groups_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "attach_codebuild_network_interfaces_policy" {
+    role       = "codebuild-api-nodejs-role"
+    policy_arn = aws_iam_policy.codebuild_network_interfaces_policy.arn
 }

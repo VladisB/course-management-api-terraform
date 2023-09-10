@@ -15,7 +15,8 @@ resource "aws_codepipeline" "api_pipeline" {
       category = "Source"
       configuration = {
         "ConnectionArn"        = aws_codestarconnections_connection.github.arn 
-        "BranchName"           = var.stage
+        # "BranchName"           = var.stage == "prod" ? "main" : "develop"
+        "BranchName"           = "develop" // NOTE: Temporary
         "FullRepositoryId"     = "VladisB/course-management"
       }
       input_artifacts = []
@@ -60,24 +61,90 @@ resource "aws_codepipeline" "api_pipeline" {
     }
   }
 
+  stage {
+    name = "Test"
+
+    action {
+      category = "Test"
+      configuration = {
+        "ProjectName" = "${var.env_prefix}-course-management-api-test-${var.stage}"
+      }
+      input_artifacts = [
+        "SourceArtifact",
+      ]
+      name = "Test"
+      output_artifacts = [
+      ]
+      owner     = "AWS"
+      provider  = "CodeBuild"
+      run_order = 1
+      version   = "1"
+    }
+  }
+
+ // Add manual approval stage
+  stage {
+    name = "Approval"
+
+    action {
+      category = "Approval"
+      configuration = {
+        "CustomData"      = "Approve or reject the change"
+      }
+      input_artifacts = []
+      name            = "Approval"
+      output_artifacts = []
+      owner     = "AWS"
+      provider  = "Manual"
+      run_order = 1
+      version   = "1"
+    }
+  } 
+
+    stage {
+    name = "Migration"
+
+    action {
+      category = "Build" //NOTE: Deploy is unavailable in eu-west-1
+      configuration = {
+        "ProjectName" = "${var.env_prefix}-course-management-api-migration-${var.stage}"
+      }
+      input_artifacts = [
+        "SourceArtifact",
+      ]
+      
+      name = "Migration"
+
+      output_artifacts = []
+
+      owner     = "AWS"
+      provider  = "CodeBuild"
+      run_order = 1
+      version   = "1"
+    }
+  }
+
+  // Deploy to ECS
   # stage {
-  #   name = "Test"
+  #   name = "Deploy"
 
   #   action {
-  #     category = "Test"
+  #     category = "Deploy"
   #     configuration = {
-  #       "ProjectName" = "${var.global_prefix}myelin-app-api-test-${var.stage}"
+  #       "ActionMode" = "REPLACE_ON_FAILURE"
+  #       "ClusterName" = "${var.env_prefix}-course-management-api-${var.stage}"
+  #       "ServiceName" = "${var.env_prefix}-course-management-api-${var.stage}"
+  #       "FileName" = "imagedefinitions.json"
   #     }
   #     input_artifacts = [
-  #       "SourceArtifact",
+  #       "BuildArtifact",
   #     ]
-  #     name = "Test"
-  #     output_artifacts = [
-  #     ]
-  #     owner     = "AWS"
-  #     provider  = "CodeBuild"
-  #     run_order = 1
-  #     version   = "1"
+  #     name             = "Deploy"
+  #     output_artifacts = []
+  #     owner            = "AWS"
+  #     provider         = "ECS"
+  #     run_order        = 1
+  #     version          = "1"
   #   }
   # }
 

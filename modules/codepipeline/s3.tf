@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "artifacts_codepipeline" {
-  bucket = "${var.env_prefix}artifacts-codepipeline-${var.stage}"
+  bucket = "cm-api-artifacts-${var.env_prefix}"
 
   tags = local.tags
 }

@@ -15,6 +15,13 @@ resource "aws_security_group" "rds" {
     protocol    = "tcp"
     security_groups = [var.jumpbox_sg_id]
   }  
+ 
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    security_groups = [var.codebuild_test_sg_id]
+  }  
 
   tags = {
       Name = "${var.env_prefix}-rds-sg"

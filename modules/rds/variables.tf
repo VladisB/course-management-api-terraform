@@ -5,3 +5,4 @@ variable env_prefix {}
 variable jumpbox_sg_id {}
 variable db_name {}
 variable db_secret_id {}
+variable codebuild_test_sg_id {}

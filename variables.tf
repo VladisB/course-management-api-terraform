@@ -11,3 +11,6 @@ variable "public_key_location" {
 variable db_name {}
 variable db_secret_id {}
 variable stage {}
+variable aws_region {
+  default = "eu-west-1"
+}

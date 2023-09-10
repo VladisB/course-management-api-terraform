@@ -34,10 +34,6 @@ resource "aws_codebuild_project" "api_build" {
     image_pull_credentials_type = "CODEBUILD"
     privileged_mode             = true
     type                        = "LINUX_CONTAINER"
-    # environment_variable {
-    #   name  = "MYELIN_CODEBUILD_ENV"
-    #   value = var.stage
-    # }
   }
 
   logs_config {
@@ -51,12 +47,9 @@ resource "aws_codebuild_project" "api_build" {
     }
   }
 
-  # source {
-  # type            = "GITHUB"
-  #   location        = "https://github.com/VladisB/course-management.git"
-  #   git_clone_depth = 1
-  # }
   source {
+    buildspec = "buildspec.${var.stage}.yml"
+
     git_clone_depth     = 0
     insecure_ssl        = false
     report_build_status = false
@@ -64,134 +57,126 @@ resource "aws_codebuild_project" "api_build" {
   }
 }
 
-# resource "aws_codebuild_project" "api_build" {
-#   name          = "api-build"
-#   description   = "API Build Project"
+resource "aws_codebuild_project" "api_test" {
+  badge_enabled  = false
+  build_timeout  = 60
+  name           = "${var.env_prefix}-course-management-api-test-${var.stage}"
+  description    = "CodeBuild project for Course Management API ${var.stage} environment."
+  queued_timeout = 480
+  service_role   = aws_iam_role.codebuild_role.arn
 
-#   service_role  = aws_iam_role.codebuild_role.arn
+  tags           = local.tags
 
-#   source {
-#     type            = "GITHUB"
-#     location        = "https://github.com/VladisB/course-management.git"
-#     git_clone_depth = 1
-#     # Note: The auth block is used to authenticate to private repos. For public repos, this isn't necessary.
-#     # auth {
-#     #   type     = "OAUTH"
-#     #   resource = "YOUR_OAUTH_TOKEN" 
-#     # }
-#   }
+  artifacts {
+    encryption_disabled    = false
+    name                   = "${var.env_prefix}-course-management-api-test-${var.stage}"
+    override_artifact_name = false
+    packaging              = "NONE"
+    type                   = "CODEPIPELINE"
+  }
 
-#   environment {
-#     compute_type                = "BUILD_GENERAL1_SMALL"
-#     image                       = "aws/codebuild/standard:5.0"
-#     type                        = "LINUX_CONTAINER"
-#     image_pull_credentials_type = "CODEBUILD"
-#   }
-# }
+  environment {
+    compute_type                = "BUILD_GENERAL1_SMALL"
+    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:5.0"
+    image_pull_credentials_type = "CODEBUILD"
+    privileged_mode             = true
+    type                        = "LINUX_CONTAINER"
+  }
 
+  logs_config {
+    cloudwatch_logs {
+      status = "ENABLED"
+    }
 
-# resource "aws_codepipeline" "api_pipeline" {
-#   name          = "${var.env_prefix}-course-management-api-${var.stage}"
-#   role_arn      = aws_iam_role.codepipeline_role.arn
-#   tags          = local.tags
+    s3_logs {
+      encryption_disabled = false
+      status              = "DISABLED"
+    }
+  }
 
-#   artifact_store {
-#     location = aws_s3_bucket.artifacts_codepipeline.bucket
-#     type     = "S3"
-#   }
+  source {
+    buildspec = "test-buildspec.${var.stage}.yml"
+    git_clone_depth     = 0
+    insecure_ssl        = false
+    report_build_status = false
+    type                = "CODEPIPELINE"
+  }
 
-#   stage {
-#     name = "Source"
+  vpc_config {
+    vpc_id             = var.vpc_id
+    subnets            = var.subnets
+    security_group_ids = [aws_security_group.codebuild-test-api-sg.id]
+  }
+}
 
-#     action {
-#       category = "Source"
-#       configuration = {
-#         "ConnectionArn"        = aws_codestarconnections_connection.github.arn 
-#         "BranchName"           = var.stage
-#         "FullRepositoryId"     = "VladisB/course-management"
-#       }
-#       input_artifacts = []
-#       name            = "Source"
-#       output_artifacts = [
-#         "SourceArtifact",
-#       ]
-#       owner     = "AWS"
-#       provider  = "CodeStarSourceConnection"
-#       run_order = 1
-#       version   = "1"
-#     }
-#   }
-#   # stage {
-#   #   name = "Build"
+resource "aws_codebuild_project" "api_migration" {
+  badge_enabled  = false
+  build_timeout  = 60
+  name           = "${var.env_prefix}-course-management-api-migration-${var.stage}"
+  description    = "CodeBuild project for Course Management API ${var.stage} environment."
+  queued_timeout = 480
+  service_role   = aws_iam_role.codebuild_role.arn
 
-#   #   action {
-#   #     category = "Build"
-#   #     configuration = {
-#   #       "EnvironmentVariables" = jsonencode(
-#   #         [
-#   #           {
-#   #             name  = "environment"
-#   #             type  = "PLAINTEXT"
-#   #             value = var.stage
-#   #           },
-#   #         ]
-#   #       )
-#   #       "ProjectName" = "${var.env_prefix}myelin-app-api-build-${var.stage}"
-#   #     }
-#   #     input_artifacts = [
-#   #       "SourceArtifact",
-#   #     ]
-#   #     name = "Build"
-#   #     output_artifacts = [
-#   #       "BuildArtifact",
-#   #     ]
-#   #     owner     = "AWS"
-#   #     provider  = "CodeBuild"
-#   #     run_order = 1
-#   #     version   = "1"
-#   #   }
-#   # }
+  tags           = local.tags
 
-#   # stage {
-#   #   name = "Test"
+  artifacts {
+    encryption_disabled    = false
+    name                   = "${var.env_prefix}-course-management-api-migration-${var.stage}"
+    override_artifact_name = false
+    packaging              = "NONE"
+    type                   = "CODEPIPELINE"
+  }
 
-#   #   action {
-#   #     category = "Test"
-#   #     configuration = {
-#   #       "ProjectName" = "${var.env_prefix}myelin-app-api-test-${var.stage}"
-#   #     }
-#   #     input_artifacts = [
-#   #       "SourceArtifact",
-#   #     ]
-#   #     name = "Test"
-#   #     output_artifacts = [
-#   #     ]
-#   #     owner     = "AWS"
-#   #     provider  = "CodeBuild"
-#   #     run_order = 1
-#   #     version   = "1"
-#   #   }
-#   # }
+  environment {
+    compute_type                = "BUILD_GENERAL1_SMALL"
+    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:5.0"
+    image_pull_credentials_type = "CODEBUILD"
+    privileged_mode             = true
+    type                        = "LINUX_CONTAINER"
+  }
 
-#   # stage {
-#   #   name = "Deploy"
+  logs_config {
+    cloudwatch_logs {
+      status = "ENABLED"
+    }
 
-#   #   action {
-#   #     category = "Deploy"
-#   #     configuration = {
-#   #       "ApplicationName": data.terraform_remote_state.beanstalk.outputs.application_name,
-#   #       "EnvironmentName": data.terraform_remote_state.beanstalk.outputs.environment_name
-#   #     }
-#   #     input_artifacts = [
-#   #       "BuildArtifact",
-#   #     ]
-#   #     name             = "Deploy"
-#   #     output_artifacts = []
-#   #     owner            = "AWS"
-#   #     provider         = "ElasticBeanstalk"
-#   #     run_order        = 1
-#   #     version          = "1"
-#   #   }
-#   # }
-# }
+    s3_logs {
+      encryption_disabled = false
+      status              = "DISABLED"
+    }
+  }
 
+  source {
+    buildspec = "migration-buildspec.${var.stage}.yml"
+    
+    git_clone_depth     = 0
+    insecure_ssl        = false
+    report_build_status = false
+    type                = "CODEPIPELINE"
+  }
+
+  vpc_config {
+    vpc_id             = var.vpc_id
+    subnets            = var.subnets
+    security_group_ids = [aws_security_group.codebuild-test-api-sg.id]
+  }
+}
+
+//TODO: move to a separate module/file
+resource "aws_security_group" "codebuild-test-api-sg" {
+    name = "${var.env_prefix}-test-stage-sg"
+    vpc_id = var.vpc_id
+
+    egress {
+        from_port = 0
+        to_port = 0
+        protocol = "-1"
+        cidr_blocks = ["0.0.0.0/0"]
+        prefix_list_ids = []
+    }
+
+    tags = {
+        Name = "${var.env_prefix}-test-stage-sg"
+        Environment = "dev"
+    }
+}
