@@ -1,11 +1,11 @@
 resource "aws_codestarconnections_connection" "github" {
-  name          = "${var.env_prefix}github-connection-${var.stage}"
+  name          = "github-connection-${var.stage}"
   provider_type = "GitHub"
   tags          = local.tags
 }
 
 resource "aws_iam_role_policy" "codepipeline_policy" {
-  name = "${var.env_prefix}codepipeline-policy-${var.stage}"
+  name = "codepipeline-policy-${var.stage}"
   role = aws_iam_role.codepipeline_role.id
 
   policy = <<EOF

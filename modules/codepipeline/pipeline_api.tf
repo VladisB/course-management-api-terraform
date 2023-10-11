@@ -1,7 +1,7 @@
 resource "aws_codepipeline" "api_pipeline" {
-  name          = "${var.env_prefix}-course-management-api-${var.stage}"
-  role_arn      = aws_iam_role.codepipeline_role.arn
-  tags          = local.tags
+  name     = "course-management-api-${var.stage}"
+  role_arn = aws_iam_role.codepipeline_role.arn
+  tags     = local.tags
 
   artifact_store {
     location = aws_s3_bucket.artifacts_codepipeline.bucket
@@ -14,10 +14,10 @@ resource "aws_codepipeline" "api_pipeline" {
     action {
       category = "Source"
       configuration = {
-        "ConnectionArn"        = aws_codestarconnections_connection.github.arn 
+        "ConnectionArn" = aws_codestarconnections_connection.github.arn
         # "BranchName"           = var.stage == "prod" ? "main" : "develop"
-        "BranchName"           = "develop" // NOTE: Temporary
-        "FullRepositoryId"     = "VladisB/course-management"
+        "BranchName"       = "develop" // NOTE: Temporary
+        "FullRepositoryId" = "VladisB/course-management"
       }
       input_artifacts = []
       name            = "Source"
@@ -45,7 +45,8 @@ resource "aws_codepipeline" "api_pipeline" {
             },
           ]
         )
-        "ProjectName" = "${var.env_prefix}-course-management-api-build-${var.stage}"
+
+        "ProjectName" = aws_codebuild_project.api_build.name
       }
       input_artifacts = [
         "SourceArtifact",
@@ -67,7 +68,7 @@ resource "aws_codepipeline" "api_pipeline" {
     action {
       category = "Test"
       configuration = {
-        "ProjectName" = "${var.env_prefix}-course-management-api-test-${var.stage}"
+        "ProjectName" = aws_codebuild_project.api_test.name
       }
       input_artifacts = [
         "SourceArtifact",
@@ -82,37 +83,36 @@ resource "aws_codepipeline" "api_pipeline" {
     }
   }
 
- // Add manual approval stage
   stage {
     name = "Approval"
 
     action {
       category = "Approval"
       configuration = {
-        "CustomData"      = "Approve or reject the change"
+        "CustomData" = "Approve or reject the change"
       }
-      input_artifacts = []
-      name            = "Approval"
+      input_artifacts  = []
+      name             = "Approval"
       output_artifacts = []
-      owner     = "AWS"
-      provider  = "Manual"
-      run_order = 1
-      version   = "1"
+      owner            = "AWS"
+      provider         = "Manual"
+      run_order        = 1
+      version          = "1"
     }
-  } 
+  }
 
-    stage {
+  stage {
     name = "Migration"
 
     action {
       category = "Build" //NOTE: Deploy is unavailable in eu-west-1
       configuration = {
-        "ProjectName" = "${var.env_prefix}-course-management-api-migration-${var.stage}"
+        "ProjectName" = aws_codebuild_project.api_migration.name
       }
       input_artifacts = [
         "SourceArtifact",
       ]
-      
+
       name = "Migration"
 
       output_artifacts = []
@@ -124,49 +124,28 @@ resource "aws_codepipeline" "api_pipeline" {
     }
   }
 
-  // Deploy to ECS
-  # stage {
-  #   name = "Deploy"
+  # // Deploy to ECS
+  stage {
+    name = "Deploy"
 
-  #   action {
-  #     category = "Deploy"
-  #     configuration = {
-  #       "ActionMode" = "REPLACE_ON_FAILURE"
-  #       "ClusterName" = "${var.env_prefix}-course-management-api-${var.stage}"
-  #       "ServiceName" = "${var.env_prefix}-course-management-api-${var.stage}"
-  #       "FileName" = "imagedefinitions.json"
-  #     }
-  #     input_artifacts = [
-  #       "BuildArtifact",
-  #     ]
-  #     name             = "Deploy"
-  #     output_artifacts = []
-  #     owner            = "AWS"
-  #     provider         = "ECS"
-  #     run_order        = 1
-  #     version          = "1"
-  #   }
-  # }
+    action {
+      category = "Deploy"
+      configuration = {
+        "ClusterName" = aws_ecs_cluster.api_app_cluster.name
+        "ServiceName" = "course-management-api"
+        "FileName"    = "imagedefinitions.json"
+      }
 
-  # stage {
-  #   name = "Deploy"
+      input_artifacts = ["BuildArtifact"]
 
-  #   action {
-  #     category = "Deploy"
-  #     configuration = {
-  #       "ApplicationName": data.terraform_remote_state.beanstalk.outputs.application_name,
-  #       "EnvironmentName": data.terraform_remote_state.beanstalk.outputs.environment_name
-  #     }
-  #     input_artifacts = [
-  #       "BuildArtifact",
-  #     ]
-  #     name             = "Deploy"
-  #     output_artifacts = []
-  #     owner            = "AWS"
-  #     provider         = "ElasticBeanstalk"
-  #     run_order        = 1
-  #     version          = "1"
-  #   }
-  # }
+      name             = "Deploy"
+      output_artifacts = []
+      owner            = "AWS"
+      provider         = "ECS"
+      run_order        = 1
+      version          = "1"
+    }
+  }
+
 }
 
