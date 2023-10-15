@@ -7,7 +7,7 @@ resource "aws_s3_bucket" "app_bucket" {
   }
 }
 
-resource "aws_s3_bucket_object" "homeworks" {
+resource "aws_s3_object" "homeworks" {
   bucket = aws_s3_bucket.app_bucket.bucket
   key    = "homeworks/"
   acl    = "private"
