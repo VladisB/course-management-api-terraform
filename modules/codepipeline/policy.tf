@@ -11,7 +11,27 @@ resource "aws_iam_role" "codepipeline_role" {
           Service = [
             "codepipeline.amazonaws.com",
             "codebuild.amazonaws.com",
-            "ecs-tasks.amazonaws.com" // Just added
+            "ecs-tasks.amazonaws.com"
+          ]
+        },
+        Effect = "Allow",
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role" "ecs_role_api" {
+  name = "ecs-role-api-${var.stage}"
+  tags = local.tags
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "sts:AssumeRole",
+        Principal = {
+          Service = [
+            "ecs-tasks.amazonaws.com"
           ]
         },
         Effect = "Allow",
@@ -72,22 +92,20 @@ resource "aws_iam_role_policy_attachment" "attach_codepipeline_passrole_policy" 
   role       = aws_iam_role.codepipeline_role.name
   policy_arn = aws_iam_policy.codepipeline_passrole_policy.arn
 }
+resource "aws_iam_role_policy_attachment" "attach_ecs_role_api_passrole_policy" {
+  role       = aws_iam_role.ecs_role_api.name
+  policy_arn = aws_iam_policy.codepipeline_passrole_policy.arn
+}
 
 resource "aws_iam_role_policy_attachment" "attach_custom_ecs_policy" {
   policy_arn = aws_iam_policy.custom_ecs_full_access.arn
   role       = aws_iam_role.codepipeline_role.name
 }
 
-// add ecs_task_execution_role_policy
-# resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
-#   role       = aws_iam_role.codepipeline_role.name
-#   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-# }
-// Granting iam:PassRole Permission
-# resource "aws_iam_role_policy_attachment" "codepipeline_role_policy" {
-#   role       = aws_iam_role.codepipeline_role.name
-#   policy_arn = "arn:aws:iam::aws:policy/AWSCodePipelineCustomActionAccess"
-# }
+resource "aws_iam_role_policy_attachment" "attach_ecs_role_custom_ecs_policy" {
+  policy_arn = aws_iam_policy.custom_ecs_full_access.arn
+  role       = aws_iam_role.ecs_role_api.name
+}
 
 resource "aws_iam_role" "codebuild_role" {
   name = "codebuild-api-nodejs-role"
@@ -271,4 +289,158 @@ resource "aws_iam_role_policy_attachment" "attach_codebuild_report_groups_policy
 resource "aws_iam_role_policy_attachment" "attach_codebuild_network_interfaces_policy" {
   role       = aws_iam_role.codebuild_role.name
   policy_arn = aws_iam_policy.codebuild_network_interfaces_policy.arn
+}
+
+resource "aws_iam_role_policy" "codepipeline_policy" {
+  name = "codepipeline-policy-${var.stage}"
+  role = aws_iam_role.codepipeline_role.id
+
+  policy = <<EOF
+{
+    "Statement": [
+        {
+            "Action": [
+                "iam:PassRole"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "codestar-connections:UseConnection"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "cloudwatch:*",
+                "rds:*",
+                "ecs:*",
+                "logs:*",
+                "ecr:*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "codebuild:BatchGetBuilds",
+                "codebuild:StartBuild",
+                "codebuild:BatchGetBuildBatches",
+                "codebuild:StartBuildBatch",
+                "codebuild:CreateReportGroup",
+                "codebuild:CreateReport",
+                "codebuild:BatchPutTestCases",
+                "codebuild:UpdateReport"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecr:DescribeImages"
+            ],
+            "Resource": "*"
+        },
+        {
+          "Effect":"Allow",
+          "Action": [
+            "s3:GetObject",
+            "s3:GetObjectVersion",
+            "s3:GetBucketVersioning",
+            "s3:PutObjectAcl",
+            "s3:PutObject"
+          ],
+          "Resource": [
+            "${aws_s3_bucket.artifacts_codepipeline.arn}",
+            "${aws_s3_bucket.artifacts_codepipeline.arn}/*"
+          ]
+        },
+        {
+            "Action": [
+                "iam:GetRole",
+                "iam:ListRolePolicies",
+                "iam:ListAttachedRolePolicies",
+                "iam:*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "secretsmanager:*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        }        
+    ],
+    "Version": "2012-10-17"
+}  
+EOF
+}
+
+resource "aws_iam_role_policy" "ecs_policy" {
+  name = "ecs-policy-${var.stage}"
+  role = aws_iam_role.ecs_role_api.id
+
+  policy = <<EOF
+{
+    "Statement": [
+        {
+            "Action": [
+                "iam:PassRole"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Condition": {
+                "StringEqualsIfExists": {
+                    "iam:PassedToService": [
+                        "ecs-tasks.amazonaws.com"
+                    ]
+                }
+            }
+        },
+        {
+            "Action": [
+                "elasticloadbalancing:*",
+                "cloudwatch:*",
+                "s3:*",
+                "rds:*",
+                "ecs:*",
+                "logs:*",
+                "ecr:*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecr:DescribeImages"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "iam:GetRole",
+                "iam:ListRolePolicies",
+                "iam:ListAttachedRolePolicies",
+                "iam:*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "secretsmanager:*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        }      
+    ],
+    "Version": "2012-10-17"
+}  
+EOF
 }

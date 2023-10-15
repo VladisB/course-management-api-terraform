@@ -6,49 +6,16 @@ data "aws_secretsmanager_secret_version" "course_management" {
   secret_id = data.aws_secretsmanager_secret.course_management.id
 }
 
-locals {
-  prod_creds = jsondecode(data.aws_secretsmanager_secret_version.course_management.secret_string)
-
-  ecs_container_envs = [
-  # Application specific environment variables
-  { name  = "APP_ACCESS_TOKEN_EXPIRES_IN", value = local.prod_creds.APP_ACCESS_TOKEN_EXPIRES_IN },
-  { name  = "APP_JWT", value = local.prod_creds.APP_JWT },
-  { name  = "APP_PORT", value = local.prod_creds.APP_PORT },
-  { name  = "APP_REFRESH_TOKEN_EXPIRES_IN", value = local.prod_creds.APP_REFRESH_TOKEN_EXPIRES_IN },
-  { name  = "APP_UPLOAD_FILE_SIZE_LIMIT_MB", value = local.prod_creds.APP_UPLOAD_FILE_SIZE_LIMIT_MB },
-  { name  = "APP_UPLOAD_RATE_LIMIT", value = local.prod_creds.APP_UPLOAD_RATE_LIMIT },
-  { name  = "APP_UPLOAD_RATE_LIMIT_TTL", value = local.prod_creds.APP_UPLOAD_RATE_LIMIT_TTL },
-  
-  # AWS S3 specific environment variables
-  { name  = "AWS_ACCESS_KEY_ID", value = local.prod_creds.AWS_ACCESS_KEY_ID },
-  { name  = "AWS_APP_BUCKET_NAME", value = local.prod_creds.AWS_APP_BUCKET_NAME },
-  { name  = "AWS_S3_REGION", value = local.prod_creds.AWS_S3_REGION },
-  { name  = "AWS_S3_URL_EXPIRES_IN_MIN", value = local.prod_creds.AWS_S3_URL_EXPIRES_IN_MIN },
-  { name  = "AWS_SECRET_ACCESS_KEY", value = local.prod_creds.AWS_SECRET_ACCESS_KEY },
-  
-  # Database specific environment variables
-  { name  = "DB_TYPE", value = "postgres" },
-  { name  = "PG_DATABASE", value = local.prod_creds.PG_DATABASE },
-  { name  = "PG_HOST", value = local.prod_creds.PG_HOST },
-  { name  = "PG_PASSWORD", value = local.prod_creds.PG_PASSWORD },
-  { name  = "PG_PORT", value = local.prod_creds.PG_PORT },
-  { name  = "PG_USER", value = local.prod_creds.PG_USER },
-  
-  # Other environment variables
-  { name  = "NODE_ENV", value = local.prod_creds.NODE_ENV }
-]
-
-}
 resource "aws_ecs_cluster" "api_app_cluster" {
   name = var.api_app_cluster_name
 }
 
-resource "aws_ecs_task_definition" "demo_app_task" {
-  family = var.demo_app_task_famliy
+resource "aws_ecs_task_definition" "api_app_task" {
+  family = var.api_app_task_famliy
 
   container_definitions = jsonencode([
     {
-      "name" : "${var.demo_app_task_name}",
+      "name" : "${var.api_app_task_name}",
       "image" : "${var.ecr_repo_url}",
       "essential" : true,
       "portMappings" : [
@@ -76,11 +43,11 @@ resource "aws_ecs_task_definition" "demo_app_task" {
   memory                   = 512
   cpu                      = 256
 
-  execution_role_arn = aws_iam_role.codepipeline_role.arn
+  execution_role_arn = aws_iam_role.ecs_role_api.arn
 }
 
 resource "aws_cloudwatch_log_group" "example" {
-  name = "/ecs/demo_app"
+  name = "/ecs/api_app"
 }
 
 resource "aws_iam_policy" "ecs_logging" {
@@ -104,7 +71,8 @@ resource "aws_iam_policy" "ecs_logging" {
 
 resource "aws_iam_role_policy_attachment" "ecs_logging" {
   policy_arn = aws_iam_policy.ecs_logging.arn
-  role       = aws_iam_role.codepipeline_role.name
+
+  role       = aws_iam_role.ecs_role_api.name
 }
 
 resource "aws_alb" "application_load_balancer" {
@@ -160,16 +128,16 @@ resource "aws_lb_listener" "listener" {
   }
 }
 
-resource "aws_ecs_service" "demo_app_service" {
-  name            = var.demo_app_service_name
+resource "aws_ecs_service" "api_app_service" {
+  name            = var.api_app_service_name
   cluster         = aws_ecs_cluster.api_app_cluster.id
-  task_definition = aws_ecs_task_definition.demo_app_task.arn
+  task_definition = aws_ecs_task_definition.api_app_task.arn
   launch_type     = "FARGATE"
   desired_count   = 1
 
   load_balancer {
     target_group_arn = aws_lb_target_group.target_group.arn
-    container_name   = aws_ecs_task_definition.demo_app_task.family
+    container_name   = aws_ecs_task_definition.api_app_task.family
     container_port   = var.container_port
   }
 

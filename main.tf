@@ -9,25 +9,25 @@ module "vpc" {
   azs  = ["${var.aws_region}a", "${var.aws_region}b"]
 
   private_subnets      = ["10.0.1.0/24", "10.0.2.0/24"]
-  private_subnet_names = ["cm-api-vpc-private-subnet-1", "cm-api-vpc-private-subnet-2"]
+  private_subnet_names = ["${var.app_name}-vpc-private-subnet-1", "${var.app_name}-vpc-private-subnet-2"]
 
   public_subnets      = ["10.0.3.0/24", "10.0.4.0/24"]
-  public_subnet_names = ["cm-api-vpc-public-subnet-1", "cm-api-vpc-public-subnet-2"]
+  public_subnet_names = ["${var.app_name}-vpc-public-subnet-1", "${var.app_name}-vpc-public-subnet-2"]
 
   enable_nat_gateway = true
   single_nat_gateway = true
 
   tags = {
-    Environment = "dev"
+    Environment = var.stage
   }
 
   vpc_tags = {
-    Name = "cm-api-vpc"
+    Name = "${var.app_name}-vpc"
   }
 
   private_route_table_tags = {
     Environment = "dev"
-    Name        = "cm-api-vpc-private-rt"
+    Name        = "${var.app_name}-vpc-private-rt"
   }
 }
 
@@ -73,11 +73,17 @@ module "codepipeline" {
   public_subnets                 = module.vpc.public_subnets
   aws_region                     = var.aws_region
   db_secret_id                   = var.db_secret_id
-  api_app_cluster_name           = "cm-api-cluster-${var.stage}"      //cm-api-cluster-prod
-  target_group_name              = "cm-api-target-group-${var.stage}" //cm-api-target-group-prod
-  application_load_balancer_name = "cm-api-alb-${var.stage}"          //cm-api-alb-prod
+  api_app_cluster_name           = "${var.app_name}-cluster-${var.stage}"      // example: cm-api-cluster-prod
+  target_group_name              = "${var.app_name}-target-group-${var.stage}" // example: cm-api-target-group-prod
+  application_load_balancer_name = "${var.app_name}-alb-${var.stage}"          // example: cm-api-alb-prod
 }
 
+module "s3" {
+  source = "./modules/s3"
+
+  stage = var.stage
+  app_name   = var.app_name
+}
 
 
 

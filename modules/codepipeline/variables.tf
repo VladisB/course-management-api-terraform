@@ -22,7 +22,7 @@ variable "availability_zones" {
   default = ["eu-east-1a", "eu-east-1b"]
 }
 
-variable "demo_app_task_famliy" {
+variable "api_app_task_famliy" {
   description = "ECS Task Family"
   type        = string
 
@@ -43,7 +43,7 @@ variable "container_port" {
   default = 8080
 }
 
-variable "demo_app_task_name" {
+variable "api_app_task_name" {
   description = "ECS Task Name"
   type        = string
 
@@ -68,7 +68,7 @@ variable "target_group_name" {
   type        = string
 }
 
-variable "demo_app_service_name" {
+variable "api_app_service_name" {
   description = "ECS Service Name"
   type        = string
 
