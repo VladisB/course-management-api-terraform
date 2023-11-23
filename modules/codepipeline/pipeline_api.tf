@@ -16,7 +16,7 @@ resource "aws_codepipeline" "api_pipeline" {
       configuration = {
         "ConnectionArn" = aws_codestarconnections_connection.github.arn
         # "BranchName"           = var.stage == "prod" ? "main" : "develop"
-        "BranchName"       = "develop" // NOTE: Temporary
+        "BranchName"       = "main"
         "FullRepositoryId" = "VladisB/course-management"
       }
       input_artifacts = []
